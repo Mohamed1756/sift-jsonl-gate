@@ -1,4 +1,4 @@
-# Sift
+# Sift: Deterministic Release Gate for JSONL Batches
 
 > **Clean what is safe, hold what is not.**  
 > Sift is a command-line release gate for JSONL batches. It decides whether a batch is safe to release, and if not, it refuses.
