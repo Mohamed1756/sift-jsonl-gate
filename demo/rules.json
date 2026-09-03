@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "required": ["order_id", "order_date", "amount_pence", "currency"],
+  "string_columns": ["order_id", "currency", "customer_notes"],
+  "date_columns": ["order_date"],
+  "integer_columns": ["amount_pence"],
+  "release": {
+    "max_quarantine_ratio": 0.70,
+    "block_if_missing": ["order_id"]
+  }
+}

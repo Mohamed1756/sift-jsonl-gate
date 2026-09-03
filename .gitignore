@@ -1,0 +1,54 @@
+# Specifications and Internal Design Documents
+*spec*.md
+spec.md
+sift-v1.0-final-spec.md
+*.spec
+TODO.md
+NOTES.md
+
+# Build Artifacts & Caches
+.scala-build/
+**/.scala-build/
+.bsp/
+**/.bsp/
+.bloop/
+**/.bloop/
+.metals/
+**/.metals/
+target/
+bin/sift-standalone
+bin/sift-native
+*.class
+*.jar
+
+# Output & Run Directories
+out/
+demo_out/
+demo_blocked_out/
+test_bin_out/
+*.blocked-*
+*.replaced-*
+*.tmp
+.sift-lock
+
+# Confidential, Secrets & Credentials
+.env
+.env.*
+*.key
+*.pem
+*.cert
+*.secret
+secrets/
+config.json
+credentials.json
+id_rsa
+id_ed25519
+
+# OS & Editor Metadata
+.DS_Store
+**/.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+*.log
