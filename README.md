@@ -226,16 +226,24 @@ The following are explicit non-goals for v1:
 
 ## Installation and Build
 
-### Standalone Native Binary (Zero JVM Dependency)
-Compile ahead of time to a standalone Mach-O (macOS) or ELF (Linux) binary via GraalVM Native Image:
+### Download Pre-Built Native Binary (Zero Dependencies)
+Download the compiled executable directly from the [latest release](https://github.com/Mohamed1756/sift-jsonl-gate/releases/latest):
+
+```bash
+# macOS (Apple Silicon arm64)
+curl -sSL https://github.com/Mohamed1756/sift-jsonl-gate/releases/latest/download/sift-v1.0.2-darwin-arm64.tar.gz | tar -xz
+chmod +x sift
+
+# Linux (x86_64)
+curl -sSL https://github.com/Mohamed1756/sift-jsonl-gate/releases/latest/download/sift-v1.0.2-linux-x86_64.tar.gz | tar -xz
+chmod +x sift
+```
+
+### Build Native Binary From Source
+Compile ahead of time via GraalVM Native Image:
 
 ```bash
 scala-cli --power package project.scala src/ --main-class sift.Sift --native-image -o sift --graalvm-args=--no-fallback
-```
-
-Execute directly:
-```bash
-./sift run --input <FILE.jsonl> --rules <RULES.json> --out <DIR>
 ```
 
 ### Self-Contained Executable Assembly
