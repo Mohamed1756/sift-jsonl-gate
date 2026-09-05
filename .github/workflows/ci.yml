@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Acceptance & Hardening Suite (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Scala CLI
+        uses: VirtusLab/scala-cli-setup@v1
+        with:
+          apps: 'scala-cli'
+
+      - name: Run Full Acceptance Suite (Tests 1 to 27 + Hardening)
+        run: |
+          scala-cli run project.scala src/ test/AcceptanceSuite.scala \
+            --main-class sift.AcceptanceSuite \
+            --server=false
+
+      - name: Run POSIX Fault-Injection Crash Recovery Test
+        run: |
+          scala-cli run project.scala src/pub/PublicationEngine.scala src/receipt/ReceiptEngine.scala test/pub/FaultInjectionTest.scala \
+            --main-class sift.pub.FaultInjectionTest \
+            --server=false
+
+      - name: Run Demo Verification
+        run: |
+          ./demo.sh

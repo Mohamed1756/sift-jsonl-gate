@@ -1,0 +1,166 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-native:
+    name: Build Native (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: linux-x86_64
+            artifact_name: sift-linux-x86_64
+          - os: macos-latest
+            target: darwin-arm64
+            artifact_name: sift-darwin-arm64
+          - os: macos-13
+            target: darwin-x86_64
+            artifact_name: sift-darwin-x86_64
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Scala CLI
+        uses: VirtusLab/scala-cli-setup@v1
+        with:
+          apps: 'scala-cli'
+
+      - name: Compile GraalVM Native Image
+        run: |
+          scala-cli --power package project.scala src/ \
+            --main-class sift.Sift \
+            --native-image \
+            -o sift \
+            --server=false \
+            --graalvm-args=--no-fallback
+
+      - name: Codesign Binary (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          codesign -s - --force sift
+
+      - name: Verify Native Binary
+        run: |
+          # 1. Refusal check (exit code 1)
+          set +e
+          ./sift run --input demo/input.jsonl --rules demo/rules_strict.json --out test_out
+          EXIT_CODE=$?
+          set -e
+          [ $EXIT_CODE -eq 1 ] || { echo "Expected exit code 1, got $EXIT_CODE"; exit 1; }
+          [ ! -f test_out/current ] || { echo "'current' pointer should not exist for blocked run"; exit 1; }
+
+          # 2. Release check (exit code 0)
+          ./sift run --input demo/clean_input.jsonl --rules demo/rules_strict.json --out test_out
+          [ -f test_out/current ] || { echo "'current' pointer must exist for released run"; exit 1; }
+          rm -rf test_out
+
+      - name: Package Release Asset
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          [ "$TAG_NAME" = "" ] && TAG_NAME="latest"
+          TAR_NAME="sift-${TAG_NAME}-${{ matrix.target }}.tar.gz"
+          tar -czf "$TAR_NAME" sift LICENSE README.md
+          echo "TAR_NAME=$TAR_NAME" >> $GITHUB_ENV
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "$TAR_NAME" > "$TAR_NAME.sha256"
+          else
+            shasum -a 256 "$TAR_NAME" > "$TAR_NAME.sha256"
+          fi
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            sift-*-${{ matrix.target }}.tar.gz
+            sift-*-${{ matrix.target }}.tar.gz.sha256
+
+  build-assembly:
+    name: Build Universal Assembly JAR
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Scala CLI
+        uses: VirtusLab/scala-cli-setup@v1
+        with:
+          apps: 'scala-cli'
+
+      - name: Build Executable Assembly
+        run: |
+          scala-cli --power package project.scala src/ \
+            --main-class sift.Sift \
+            --assembly \
+            -o sift-standalone.jar \
+            --server=false
+
+      - name: Package Assembly
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          [ "$TAG_NAME" = "" ] && TAG_NAME="latest"
+          TAR_NAME="sift-${TAG_NAME}-universal-jar.tar.gz"
+          tar -czf "$TAR_NAME" sift-standalone.jar LICENSE README.md
+          echo "TAR_NAME=$TAR_NAME" >> $GITHUB_ENV
+          sha256sum "$TAR_NAME" > "$TAR_NAME.sha256"
+
+      - name: Upload Universal Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sift-universal-jar
+          path: |
+            sift-*-universal-jar.tar.gz
+            sift-*-universal-jar.tar.gz.sha256
+
+  publish-release:
+    name: Publish GitHub Release
+    needs: [build-native, build-assembly]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Generate Consolidated SHA256SUMS
+        run: |
+          cd release-assets
+          cat *.sha256 > SHA256SUMS.txt
+          rm -f *.sha256
+          ls -la
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false
