@@ -23,9 +23,6 @@ jobs:
           - os: macos-latest
             target: darwin-arm64
             artifact_name: sift-darwin-arm64
-          - os: macos-13
-            target: darwin-x86_64
-            artifact_name: sift-darwin-x86_64
 
     steps:
       - name: Checkout Code
